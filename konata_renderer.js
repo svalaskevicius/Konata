@@ -740,9 +740,7 @@ class KonataRenderer{
                     ctx.fillRect(0, fillTop, tile.clientWidth, this.opH_);
                 }
             }
-            if (skipRendering) {
-                continue;
-            }
+
 
             let op = null;
             try {
@@ -756,8 +754,14 @@ class KonataRenderer{
                 // after null.
                 continue;
             }
+            let h = y - top + offsetY;
+            self.drawLaneBackground_(op, h, ctx);
 
-            if (!self.drawOp_(op, y - top + offsetY, left, left + width, scale, ctx)) {
+            if (skipRendering) {
+                continue;
+            }
+
+            if (!self.drawOp_(op, h, left, left + width, scale, ctx)) {
                 skipRendering = true;
             }
         }
@@ -1023,13 +1027,12 @@ class KonataRenderer{
         return true;
     }
 
-    drawLane_(op, h, startCycle, endCycle, scale, ctx, laneName){
+    drawLaneBackground_(op, h, ctx){
         let self = this;
 
         let fontSizeRaw = self.stageFontSize_;
         ctx.font = self.stageFont_;
 
-        let lane = op.lanes[laneName].stages;
         let top = h * self.opH_ + self.PIXEL_ADJUST;
 
         if (self.canDrawText) {
@@ -1039,6 +1042,16 @@ class KonataRenderer{
                 ctx.fillText(op.addressInfo, 10, textTop);
             }
         }
+    }
+
+    drawLane_(op, h, startCycle, endCycle, scale, ctx, laneName){
+        let self = this;
+
+        let fontSizeRaw = self.stageFontSize_;
+        ctx.font = self.stageFont_;
+
+        let lane = op.lanes[laneName].stages;
+        let top = h * self.opH_ + self.PIXEL_ADJUST;
 
         for (let i = 0, len = lane.length; i < len; i++) {
             let stage = lane[i];
