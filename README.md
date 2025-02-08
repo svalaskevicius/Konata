@@ -55,6 +55,52 @@ If you fail to launch a pre-built binary, please try the second way.
 * ctrl + f, F3, shift+F3: find a string 
 * F1, ctrl+shift+p: open a command palette
 
+### Annotate pipelines with function names
+
+
+1. Prepare the input file:
+
+```sh
+# Extract used addresses:
+cat m5out/trace.out | grep -oe '^O3PipeView:fetch:[0-9]\+:0x[0-9a-f]\+:' | grep -oe '0x[0-9a-f]\+' | uniq | sort | uniq > instructions.log
+
+
+# Extract address info
+addr2line -e <PROGRAM WITH DEBUG INFO> -f -C -i -s -p -a @instructions.log > addrinfo.log
+
+# Annotate the trace file
+awk -f - <<'EOF' addrinfo.log m5out/trace.out > processed.trace.out
+    BEGIN { 
+        RS="\n"; 
+        F=0;
+    }
+    F==0 {
+        if (match($0, /^(0x[0-9a-fA-F]+):(.*)$/, arr)) {
+            k=strtonum(arr[1]);
+            addrs[k]=arr[2];
+        } else {
+            addrs[k]=addrs[k] "\n" $0
+        }
+    }
+    NR>1 && FNR==1 { 
+        RS="\n"; 
+        FS=":";
+        F=1;
+    }
+    F==1 && $1=="O3PipeView" && $2=="fetch" {
+        print "<ADDRESSINFO>\n"addrs[strtonum($4)]"\n</ADDRESSINFO>";
+        print $0;
+        next;
+    }
+    F==1 {
+        print $0;
+    }
+EOF
+```
+
+
+2. Load the processed trace in Konata
+
 ### Tips
 
 * If you miss pipelines in a right pane, you can move to pipelines by click "Adjust position" in a right-click menu.
