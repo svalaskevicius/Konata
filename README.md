@@ -66,7 +66,37 @@ cat m5out/trace.out | grep -oe '^O3PipeView:fetch:[0-9]\+:0x[0-9a-f]\+:' | grep 
 
 
 # Extract address info
-addr2line -e <PROGRAM WITH DEBUG INFO> -f -C -i -s -p -a @instructions.log > addrinfo.log
+addr2line -e <PROGRAM WITH DEBUG INFO> -f -C -i -f -p -a @instructions.log > addrinfo.log
+
+# (Optionally), include source lines too:
+awk -f - <<'EOF' addrinfo.log | awk '{ print gensub(/( at )(.*\/)([^/]+)$/, "\\1\\3", "g", $0) }' > addrinfo.withcode.log
+    BEGIN { 
+        RS="\n"; 
+    }
+    {
+        if (match($0, /^(0x[0-9a-fA-F]+:)(.*) at ([^ ]+):([0-9]+)$/, arr)) {
+            line=strtonum(arr[4])
+            codeline=false
+            if (line>0) {
+                file=arr[3];
+                file=gensub(/\/rustc\/1e9b0177da38e3f421a3b9b1942f1777d166e06a\//, "/home/sarunas/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/", "g", file);
+                if (linecache[file":"line]) {
+                    codeline = linecache[file":"line];
+                } else {
+                    "sed -n '"line"p' "file | getline codeline;
+                    gsub(/^[ \t]+|[ \t]+$/, "", codeline);
+                    linecache[file":"line] = codeline;
+                }
+                print arr[1] " " codeline " @ " arr[2]
+                print arr[2] " at " arr[3] ":" arr[4]
+            } else {
+                print $0
+            }
+        } else {
+            print $0
+        }
+    }
+EOF
 
 # Annotate the trace file
 awk -f - <<'EOF' addrinfo.log m5out/trace.out > processed.trace.out
